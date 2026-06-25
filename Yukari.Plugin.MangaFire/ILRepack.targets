@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="ILRepacker" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <InputAssemblies Include="$(OutputPath)\$(AssemblyName).dll" />
+      <InputAssemblies Include="$(OutputPath)\HtmlAgilityPack.dll" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <DoNotInternalizeAssemblies Include="Yukari.Core" />
+    </ItemGroup>
+
+    <ILRepack
+      Parallel="true"
+      Internalize="true"
+      InternalizeExclude="@(DoNotInternalizeAssemblies)"
+      InputAssemblies="@(InputAssemblies)"
+      TargetKind="Dll"
+      LibraryPath="$(OutputPath)"
+      OutputFile="$(OutputPath)\$(AssemblyName).dll"
+    />
+  </Target>
+</Project>
