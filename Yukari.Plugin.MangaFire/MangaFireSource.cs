@@ -1,6 +1,9 @@
 using System.Net;
+using System.Net.Http.Json;
 using Yukari.Core.Models;
 using Yukari.Core.Sources;
+using Yukari.Plugin.MangaFire.Data;
+using Yukari.Plugin.MangaFire.Helpers;
 
 namespace Yukari.Plugin.MangaFire;
 
@@ -13,6 +16,8 @@ namespace Yukari.Plugin.MangaFire;
 )]
 public class MangaFireSource : IComicSource, IRequiresHttpClient
 {
+    private const int DefaultPageSize = 24;
+
     private static IReadOnlyList<Filter>? _filters;
     private static IReadOnlyDictionary<string, string>? _languages;
 
@@ -36,14 +41,50 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
 
     public void SetHttpClient(ISharedHttpClient httpClient) => _httpClient = httpClient;
 
-    public Task<IReadOnlyList<Comic>> SearchAsync(
+    public async Task<IReadOnlyList<Comic>> SearchAsync(
         string query,
         IReadOnlyDictionary<string, IReadOnlyList<string>> filters,
         int page = 1,
         CancellationToken ct = default
     )
     {
-        throw new NotImplementedException();
+        var queryParams = new Dictionary<string, string[]>
+        {
+            ["page"] = [page.ToString()],
+            ["limit"] = [DefaultPageSize.ToString()],
+        };
+
+        if (!string.IsNullOrWhiteSpace(query))
+            queryParams["keyword"] = [query];
+
+        foreach (var kvp in filters)
+            queryParams[kvp.Key] = kvp.Value.ToArray();
+
+        var searchResults = (
+            await GetFromApiAsync<SearchResponse>("/titles", queryParams, ct)
+        )?.Comics;
+        if (searchResults is not { Length: > 0 })
+            return Array.Empty<Comic>();
+
+        var comics = searchResults
+            .Select(result =>
+            {
+                return new Comic(
+                    Id: result.Hid,
+                    ComicUrl: null,
+                    Slug: null,
+                    Title: result.Title,
+                    Author: null,
+                    Description: null,
+                    Tags: [],
+                    Year: null,
+                    CoverImageUrl: result.CoverUrl.Medium,
+                    Langs: []
+                );
+            })
+            .ToList();
+
+        return comics;
     }
 
     public Task<IReadOnlyList<Comic>> GetTrendingAsync(
@@ -105,4 +146,49 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
     {
         return ValueTask.CompletedTask;
     }
+
+    private async Task<T?> GetFromApiAsync<T>(
+        string endpoint,
+        Dictionary<string, string[]>? queryParams = null,
+        CancellationToken ct = default
+    )
+    {
+        var url = $"{BaseUrl}{endpoint}";
+        var allParams = queryParams ?? new Dictionary<string, string[]>();
+
+        var vrf = FireCrypto.ComputeVrf(url, allParams);
+        allParams["vrf"] = [vrf];
+
+        var fullUrl = $"{url}?{ToQueryString(allParams)}";
+
+        using var response = await _httpClient!.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, fullUrl),
+            ct
+        );
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            throw new HttpRequestException(
+                "MangaFire Rate Limit Exceeded. Try again later.",
+                null,
+                HttpStatusCode.TooManyRequests
+            );
+
+        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.NotFound)
+            return default;
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync<T>(ct);
+    }
+
+    private static string ToQueryString(Dictionary<string, string[]> source) =>
+        string.Join(
+            "&",
+            source
+                .OrderBy(kvp => kvp.Key)
+                .SelectMany(kvp =>
+                    kvp.Value.Where(v => !string.IsNullOrEmpty(v))
+                        .Select(v => $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(v)}")
+                )
+        );
 }
