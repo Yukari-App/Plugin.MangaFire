@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using Yukari.Core.Models;
@@ -239,13 +240,67 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
         );
     }
 
-    public Task<IReadOnlyList<Chapter>> GetAllChaptersAsync(
+    public async Task<IReadOnlyList<Chapter>> GetAllChaptersAsync(
         string comicId,
         string language,
         CancellationToken ct = default
     )
     {
-        throw new NotImplementedException();
+        const int limit = 100;
+
+        List<FireChapter> chapterResults = new();
+        int page = 1;
+
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var queryParams = new Dictionary<string, string[]>
+            {
+                ["limit"] = [limit.ToString()],
+                ["page"] = [page.ToString()],
+                ["sort"] = ["number"],
+                ["order"] = ["asc"],
+                ["language"] = [language],
+            };
+
+            string chaptersEndpoint = $"/titles/{comicId}/chapters";
+
+            var chaptersResponse = await GetFromApiAsync<ChaptersResponse>(
+                chaptersEndpoint,
+                queryParams,
+                ct
+            );
+
+            if (chaptersResponse == null)
+                return Array.Empty<Chapter>();
+
+            if (chaptersResponse?.Chapters is { Length: > 0 } data)
+                chapterResults.AddRange(data);
+            else
+                break;
+
+            if (chapterResults.Count >= chaptersResponse.Meta.Total)
+                break;
+
+            page++;
+            await Task.Delay(100, ct);
+        }
+
+        return chapterResults
+            .Select(result => new Chapter(
+                Id: result.Id.ToString(),
+                Title: result.Title,
+                Number: result.Number.ToString("0.#", CultureInfo.InvariantCulture),
+                Volume: null,
+                Language: result.Lang,
+                Groups: result.Type == "official" ? ["Official"] : [],
+                LastUpdate: DateOnly.FromDateTime(
+                    DateTimeOffset.FromUnixTimeSeconds(result.CreatedAt).Date
+                ),
+                Pages: null
+            ))
+            .ToList();
     }
 
     public Task<IReadOnlyList<ChapterPage>> GetChapterPagesAsync(
