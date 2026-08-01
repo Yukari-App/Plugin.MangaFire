@@ -1,15 +1,17 @@
-﻿using Yukari.Core.Models;
+using System.Net;
+using Yukari.Core.Models;
 using Yukari.Core.Sources;
 
 namespace Yukari.Plugin.MangaFire;
 
 [ComicSourceMetadata(
     "MangaFire",
-    "0.1.0-Alpha+core2.2.0",
-    "https://mangafire.to/assets/sites/mangafire/favicon.png?v3",
+    "0.1.0-Alpha+core2.4.0",
+    "https://github.com/Yukari-App/Plugin.MangaFire/releases",
+    "https://mangafire.to/assets/mangafire/logo-sm.png",
     "Access a vast array of manga in different languages."
 )]
-public class MangaFireSource : IComicSource
+public class MangaFireSource : IComicSource, IRequiresHttpClient
 {
     private static IReadOnlyList<Filter>? _filters;
     private static IReadOnlyDictionary<string, string>? _languages;
@@ -25,17 +27,14 @@ public class MangaFireSource : IComicSource
             { "es-la", "Español LA" },
             { "pt", "Português (EU)" },
             { "pt-br", "Português" },
-            { "jp", "日本語" },
+            { "ja", "日本語" },
         };
 
-    private const string BaseUrl = "https://mangafire.to";
+    private const string BaseUrl = "https://mangafire.to/api";
 
-    private static readonly HttpClient _httpClient = new HttpClient();
+    private ISharedHttpClient? _httpClient;
 
-    static MangaFireSource()
-    {
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Yukari.Plugin.MangaFire/0.1.0");
-    }
+    public void SetHttpClient(ISharedHttpClient httpClient) => _httpClient = httpClient;
 
     public Task<IReadOnlyList<Comic>> SearchAsync(
         string query,
@@ -77,6 +76,29 @@ public class MangaFireSource : IComicSource
     )
     {
         throw new NotImplementedException();
+    }
+
+    public async Task<byte[]?> GetImageBytesAsync(string imageUrl, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(imageUrl))
+            return null;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, imageUrl);
+        request.Headers.Add("Referer", "https://mangafire.to");
+
+        using var response = await _httpClient!.SendAsync(request, ct);
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            throw new HttpRequestException(
+                "MangaFire Rate Limit Exceeded. Try again later.",
+                null,
+                HttpStatusCode.TooManyRequests
+            );
+
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        return await response.Content.ReadAsByteArrayAsync(ct);
     }
 
     public ValueTask DisposeAsync()
