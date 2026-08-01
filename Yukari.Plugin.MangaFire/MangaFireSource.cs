@@ -87,13 +87,18 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
         return comics;
     }
 
-    public Task<IReadOnlyList<Comic>> GetTrendingAsync(
+    public async Task<IReadOnlyList<Comic>> GetTrendingAsync(
         IReadOnlyDictionary<string, IReadOnlyList<string>> filters,
         int page = 1,
         CancellationToken ct = default
     )
     {
-        throw new NotImplementedException();
+        var trendingFilters = new Dictionary<string, IReadOnlyList<string>>(filters)
+        {
+            ["order[trending]"] = ["desc"],
+        };
+
+        return await SearchAsync(string.Empty, trendingFilters, page, ct);
     }
 
     public Task<Comic?> GetDetailsAsync(string comicId, CancellationToken ct = default)
