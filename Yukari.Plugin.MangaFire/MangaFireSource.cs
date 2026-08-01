@@ -168,7 +168,7 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
         };
 
         if (!string.IsNullOrWhiteSpace(query))
-            queryParams["keyword"] = [query];
+            queryParams["keyword"] = [query.Trim()];
 
         foreach (var kvp in filters)
             queryParams[kvp.Key] = kvp.Value.ToArray();
@@ -214,9 +214,29 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
         return await SearchAsync(string.Empty, trendingFilters, page, ct);
     }
 
-    public Task<Comic?> GetDetailsAsync(string comicId, CancellationToken ct = default)
+    public async Task<Comic?> GetDetailsAsync(string comicId, CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        string detailsEndpoint = $"/titles/{comicId}";
+
+        var detailsResult = (
+            await GetFromApiAsync<DetailsResponse>(detailsEndpoint, ct: ct)
+        )?.Comic;
+        if (detailsResult is null)
+            return null;
+
+        return new Comic(
+            Id: detailsResult.Hid,
+            ComicUrl: $"https://mangafire.to/title/{detailsResult.Hid}-{detailsResult.Slug}",
+            Slug: null,
+            Title: detailsResult.Title,
+            Author: detailsResult.Authors.FirstOrDefault()?.Name,
+            Description: detailsResult.DescriptionHTML,
+            Tags: detailsResult.Genres.Select(t => t.Name).ToArray(),
+            Year: detailsResult.Year,
+            CoverImageUrl: detailsResult.CoverUrl.Medium,
+            Langs: detailsResult.Langs,
+            Status: GetComicStatus(detailsResult.Status)
+        );
     }
 
     public Task<IReadOnlyList<Chapter>> GetAllChaptersAsync(
@@ -298,6 +318,16 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
 
         return await response.Content.ReadFromJsonAsync<T>(ct);
     }
+
+    private static ComicStatus GetComicStatus(string? status) =>
+        status switch
+        {
+            "finished" => ComicStatus.Completed,
+            "releasing" => ComicStatus.Ongoing,
+            "on_hiatus" => ComicStatus.Hiatus,
+            "discontinued" => ComicStatus.Cancelled,
+            _ => ComicStatus.Unknown,
+        };
 
     private static string ToQueryString(Dictionary<string, string[]> source) =>
         string.Join(

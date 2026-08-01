@@ -12,5 +12,6 @@ internal record FireComic(
     [property: JsonPropertyName("genres")] Prop[] Genres,
     [property: JsonPropertyName("year")] int? Year,
     [property: JsonPropertyName("poster")] Poster CoverUrl,
+    [property: JsonPropertyName("languages")] string[] Langs,
     [property: JsonPropertyName("status")] string Status
 );
