@@ -21,7 +21,120 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
     private static IReadOnlyList<Filter>? _filters;
     private static IReadOnlyDictionary<string, string>? _languages;
 
-    public IReadOnlyList<Filter> Filters => _filters ??= [];
+    public IReadOnlyList<Filter> Filters =>
+        _filters ??= new List<Filter>
+        {
+            new Filter(
+                Key: "content_rating[]",
+                DisplayName: "Content Rating",
+                [
+                    new FilterOption("safe", "Safe", true),
+                    new FilterOption("suggestive", "Suggestive", true),
+                    new FilterOption("erotica", "Erotica", false),
+                    new FilterOption("pornographic", "Pornographic", false),
+                ],
+                AllowMultiple: true
+            ),
+            new Filter(
+                Key: "types[]",
+                DisplayName: "Types",
+                [
+                    new FilterOption("manga", "Manga", false),
+                    new FilterOption("manhwa", "Manhwa", false),
+                    new FilterOption("manhua", "Manhua", false),
+                    new FilterOption("other", "Other", false),
+                ],
+                AllowMultiple: true
+            ),
+            new Filter(
+                Key: "demographics[]",
+                DisplayName: "Demographics",
+                [
+                    new FilterOption("josei", "Josei", false),
+                    new FilterOption("seinen", "Seinen", false),
+                    new FilterOption("shoujo", "Shoujo", false),
+                    new FilterOption("shounen", "Shounen", false),
+                ],
+                AllowMultiple: true
+            ),
+            new Filter(
+                Key: "statuses[]",
+                DisplayName: "Statuses",
+                [
+                    new FilterOption("releasing", "Ongoing", false),
+                    new FilterOption("finished", "Completed", false),
+                    new FilterOption("on_hiatus", "Hiatus", false),
+                    new FilterOption("discontinued", "Cancelled", false),
+                ],
+                AllowMultiple: true
+            ),
+            new Filter(
+                Key: "languages[]",
+                DisplayName: "Language",
+                Languages.Select(kvp => new FilterOption(kvp.Key, kvp.Value, false)).ToArray(),
+                AllowMultiple: true
+            ),
+            new Filter(
+                Key: "genres_in[]",
+                DisplayName: "Genres",
+                [
+                    new FilterOption("1", "Action", false),
+                    new FilterOption("268929", "Adult", false),
+                    new FilterOption("78", "Adventure", false),
+                    new FilterOption("3", "Avant Garde", false),
+                    new FilterOption("4", "Boys Love", false),
+                    new FilterOption("5", "Comedy", false),
+                    new FilterOption("268921", "Crime", false),
+                    new FilterOption("77", "Demons", false),
+                    new FilterOption("6", "Drama", false),
+                    new FilterOption("7", "Ecchi", false),
+                    new FilterOption("79", "Fantasy", false),
+                    new FilterOption("9", "Girls Love", false),
+                    new FilterOption("10", "Gourmet", false),
+                    new FilterOption("11", "Harem", false),
+                    new FilterOption("268930", "Hentai", false),
+                    new FilterOption("268922", "Historical", false),
+                    new FilterOption("530", "Horror", false),
+                    new FilterOption("13", "Isekai", false),
+                    new FilterOption("531", "Iyashikei", false),
+                    new FilterOption("15", "Josei", false),
+                    new FilterOption("532", "Kids", false),
+                    new FilterOption("539", "Magic", false),
+                    new FilterOption("268923", "Magical Girls", false),
+                    new FilterOption("533", "Mahou Shoujo", false),
+                    new FilterOption("534", "Martial Arts", false),
+                    new FilterOption("268931", "Mature", false),
+                    new FilterOption("19", "Mecha", false),
+                    new FilterOption("268924", "Medical", false),
+                    new FilterOption("535", "Military", false),
+                    new FilterOption("21", "Music", false),
+                    new FilterOption("22", "Mystery", false),
+                    new FilterOption("23", "Parody", false),
+                    new FilterOption("268925", "Philosophical", false),
+                    new FilterOption("536", "Psychological", false),
+                    new FilterOption("25", "Reverse Harem", false),
+                    new FilterOption("26", "Romance", false),
+                    new FilterOption("73", "School", false),
+                    new FilterOption("28", "Sci-Fi", false),
+                    new FilterOption("537", "Seinen", false),
+                    new FilterOption("30", "Shoujo", false),
+                    new FilterOption("31", "Shounen", false),
+                    new FilterOption("538", "Slice of Life", false),
+                    new FilterOption("268932", "Smut", false),
+                    new FilterOption("33", "Space", false),
+                    new FilterOption("34", "Sports", false),
+                    new FilterOption("75", "Super Power", false),
+                    new FilterOption("268926", "Superhero", false),
+                    new FilterOption("76", "Supernatural", false),
+                    new FilterOption("37", "Suspense", false),
+                    new FilterOption("38", "Thriller", false),
+                    new FilterOption("268927", "Tragedy", false),
+                    new FilterOption("39", "Vampire", false),
+                    new FilterOption("268928", "Wuxia", false),
+                ],
+                AllowMultiple: true
+            ),
+        };
 
     public IReadOnlyDictionary<string, string> Languages =>
         _languages ??= new Dictionary<string, string>
