@@ -303,13 +303,27 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
             .ToList();
     }
 
-    public Task<IReadOnlyList<ChapterPage>> GetChapterPagesAsync(
+    public async Task<IReadOnlyList<ChapterPage>> GetChapterPagesAsync(
         string comicId,
         string chapterId,
         CancellationToken ct = default
     )
     {
-        throw new NotImplementedException();
+        string pagesEndpoint = $"/chapters/{chapterId}";
+
+        var chapterResult = (
+            await GetFromApiAsync<ChapterDetailsResponse>(pagesEndpoint, ct: ct)
+        )?.Chapter;
+        if (chapterResult is not { Pages.Length: > 0 })
+            return Array.Empty<ChapterPage>();
+
+        var pages = new List<ChapterPage>(chapterResult.Pages.Length);
+        for (int i = 0; i < chapterResult.Pages.Length; i++)
+        {
+            pages.Add(new ChapterPage(Number: i + 1, ImageUrl: chapterResult.Pages[i].ImageUrl));
+        }
+
+        return pages;
     }
 
     public async Task<byte[]?> GetImageBytesAsync(string imageUrl, CancellationToken ct = default)
