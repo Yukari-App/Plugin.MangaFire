@@ -8,5 +8,6 @@ internal record FireChapter(
     [property: JsonPropertyName("name")] string? Title,
     [property: JsonPropertyName("language")] string Lang,
     [property: JsonPropertyName("type")] string Type,
-    [property: JsonPropertyName("createdAt")] int CreatedAt
+    [property: JsonPropertyName("createdAt")] int CreatedAt,
+    [property: JsonPropertyName("pages")] Page[] Pages
 );
