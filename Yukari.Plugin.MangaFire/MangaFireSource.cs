@@ -332,10 +332,9 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
             return null;
 
         using var request = new HttpRequestMessage(HttpMethod.Get, imageUrl);
-        request.Headers.Add("Referer", "https://mangafire.to");
+        AddRequestHeaders(request, isApiRequest: false);
 
         using var response = await _httpClient!.SendAsync(request, ct);
-
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
             throw new HttpRequestException(
                 "MangaFire Rate Limit Exceeded. Try again later.",
@@ -368,11 +367,10 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
 
         var fullUrl = $"{url}?{ToQueryString(allParams)}";
 
-        using var response = await _httpClient!.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, fullUrl),
-            ct
-        );
+        using var request = new HttpRequestMessage(HttpMethod.Get, fullUrl);
+        AddRequestHeaders(request);
 
+        using var response = await _httpClient!.SendAsync(request, ct);
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
             throw new HttpRequestException(
                 "MangaFire Rate Limit Exceeded. Try again later.",
@@ -386,6 +384,21 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
         response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadFromJsonAsync<T>(ct);
+    }
+
+    private static void AddRequestHeaders(HttpRequestMessage request, bool isApiRequest = true)
+    {
+        request.Headers.Add("Referer", "https://mangafire.to/");
+        request.Headers.Add(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0"
+        );
+
+        if (isApiRequest)
+        {
+            request.Headers.Add("Accept", "application/json");
+            request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+        }
     }
 
     private static ComicStatus GetComicStatus(string? status) =>
