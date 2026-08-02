@@ -144,8 +144,8 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
             { "fr", "Français" },
             { "es", "Español" },
             { "es-la", "Español LA" },
-            { "pt", "Português (EU)" },
             { "pt-br", "Português" },
+            { "pt", "Português (EU)" },
             { "ja", "日本語" },
         };
 
