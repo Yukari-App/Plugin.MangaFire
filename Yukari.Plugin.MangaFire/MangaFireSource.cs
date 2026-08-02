@@ -402,7 +402,7 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
         string.Join(
             "&",
             source
-                .OrderBy(kvp => kvp.Key)
+                .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
                 .SelectMany(kvp =>
                     kvp.Value.Where(v => !string.IsNullOrEmpty(v))
                         .Select(v => $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(v)}")

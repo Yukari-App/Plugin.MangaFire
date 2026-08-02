@@ -37,7 +37,7 @@ internal static class FireCrypto
         var paramStrings = new List<string>();
         if (queryParams != null)
         {
-            var sortedKeys = queryParams.Keys.OrderBy(k => k);
+            var sortedKeys = queryParams.Keys.OrderBy(k => k, StringComparer.Ordinal);
             foreach (var key in sortedKeys)
             {
                 var values = queryParams[key];
