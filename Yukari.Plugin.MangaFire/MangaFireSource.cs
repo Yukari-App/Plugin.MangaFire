@@ -10,7 +10,7 @@ namespace Yukari.Plugin.MangaFire;
 
 [ComicSourceMetadata(
     "MangaFire",
-    "0.1.0-Alpha+core2.4.0",
+    "1.0.0+core2.4.0",
     "https://github.com/Yukari-App/Plugin.MangaFire/releases",
     "https://mangafire.to/assets/mangafire/logo-sm.png",
     "Access a vast array of manga in different languages."
