@@ -3,6 +3,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Yukari.Core.Models;
 using Yukari.Core.Sources;
+using Yukari.Core.Sources.Browser;
+using Yukari.Core.Sources.Http;
 using Yukari.Plugin.MangaFire.Data;
 using Yukari.Plugin.MangaFire.Helpers;
 
@@ -15,7 +17,7 @@ namespace Yukari.Plugin.MangaFire;
     "https://mangafire.to/assets/mangafire/logo-sm.png",
     "Access a vast array of manga in different languages."
 )]
-public class MangaFireSource : IComicSource, IRequiresHttpClient
+public class MangaFireSource : IComicSource, IRequiresHttpClient, IRequiresBrowser
 {
     private const int DefaultPageSize = 24;
 
@@ -152,6 +154,8 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient
     private const string BaseUrl = "https://mangafire.to/api";
 
     private ISharedHttpClient? _httpClient;
+    private IBrowserService? _browserService;
+    private BrowserSession? _cachedSession;
 
     public void SetHttpClient(ISharedHttpClient httpClient) => _httpClient = httpClient;
 
