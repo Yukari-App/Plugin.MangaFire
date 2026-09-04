@@ -159,6 +159,8 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient, IRequiresBrows
 
     public void SetHttpClient(ISharedHttpClient httpClient) => _httpClient = httpClient;
 
+    public void SetBrowser(IBrowserService browserService) => _browserService = browserService;
+
     public async Task<IReadOnlyList<Comic>> SearchAsync(
         string query,
         IReadOnlyDictionary<string, IReadOnlyList<string>> filters,
@@ -190,7 +192,6 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient, IRequiresBrows
                 return new Comic(
                     Id: result.Hid,
                     ComicUrl: null,
-                    Slug: null,
                     Title: result.Title,
                     Author: null,
                     Description: null,
@@ -232,7 +233,6 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient, IRequiresBrows
         return new Comic(
             Id: detailsResult.Hid,
             ComicUrl: $"https://mangafire.to/title/{detailsResult.Hid}-{detailsResult.Slug}",
-            Slug: null,
             Title: detailsResult.Title,
             Author: detailsResult.Authors.FirstOrDefault()?.Name,
             Description: detailsResult.DescriptionHTML,
@@ -335,6 +335,8 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient, IRequiresBrows
         if (string.IsNullOrEmpty(imageUrl))
             return null;
 
+        await EnsureBrowserSessionAsync(ct);
+
         using var request = new HttpRequestMessage(HttpMethod.Get, imageUrl);
         AddRequestHeaders(request, isApiRequest: false);
 
@@ -348,7 +350,6 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient, IRequiresBrows
 
         if (!response.IsSuccessStatusCode)
             return null;
-
         return await response.Content.ReadAsByteArrayAsync(ct);
     }
 
@@ -366,43 +367,106 @@ public class MangaFireSource : IComicSource, IRequiresHttpClient, IRequiresBrows
         var url = $"{BaseUrl}{endpoint}";
         var allParams = queryParams ?? new Dictionary<string, string[]>();
 
+        await EnsureBrowserSessionAsync(ct);
+
         var vrf = FireCrypto.ComputeVrf(url, allParams);
         allParams["vrf"] = [vrf];
 
         var fullUrl = $"{url}?{ToQueryString(allParams)}";
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, fullUrl);
-        AddRequestHeaders(request);
+        HttpResponseMessage? response = null;
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, fullUrl);
+            AddRequestHeaders(request);
+            response = await _httpClient!.SendAsync(request, ct);
 
-        using var response = await _httpClient!.SendAsync(request, ct);
-        if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            throw new HttpRequestException(
-                "MangaFire Rate Limit Exceeded. Try again later.",
-                null,
-                HttpStatusCode.TooManyRequests
-            );
+            if (response.StatusCode == HttpStatusCode.Forbidden && _cachedSession != null)
+            {
+                response.Dispose();
 
-        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.NotFound)
-            return default;
+                _cachedSession = null;
+                await EnsureBrowserSessionAsync(ct);
 
-        response.EnsureSuccessStatusCode();
+                using var retryRequest = new HttpRequestMessage(HttpMethod.Get, fullUrl);
+                AddRequestHeaders(retryRequest);
+                response = await _httpClient!.SendAsync(retryRequest, ct);
+            }
 
-        return await response.Content.ReadFromJsonAsync<T>(ct);
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                throw new HttpRequestException(
+                    "MangaFire Rate Limit Exceeded. Try again later.",
+                    null,
+                    HttpStatusCode.TooManyRequests
+                );
+
+            if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.NotFound)
+                return default;
+
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<T>(ct);
+        }
+        finally
+        {
+            response?.Dispose();
+        }
     }
 
-    private static void AddRequestHeaders(HttpRequestMessage request, bool isApiRequest = true)
+    private void AddRequestHeaders(HttpRequestMessage request, bool isApiRequest = true)
     {
         request.Headers.Add("Referer", "https://mangafire.to/");
-        request.Headers.Add(
-            "User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0"
-        );
+
+        var headers = GetSessionHeaders();
+        var userAgent =
+            headers?.UserAgent
+            ?? "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0";
+        request.Headers.Add("User-Agent", userAgent);
+
+        if (headers != null && !string.IsNullOrEmpty(headers.Value.CookieHeader))
+            request.Headers.Add("Cookie", headers.Value.CookieHeader);
 
         if (isApiRequest)
         {
             request.Headers.Add("Accept", "application/json");
             request.Headers.Add("X-Requested-With", "XMLHttpRequest");
         }
+    }
+
+    private (string CookieHeader, string UserAgent)? GetSessionHeaders()
+    {
+        if (_cachedSession == null)
+            return null;
+        var cookieString = string.Join(
+            "; ",
+            _cachedSession.Cookies.Select(c => $"{c.Key}={c.Value}")
+        );
+        return (cookieString, _cachedSession.UserAgent);
+    }
+
+    private async Task<BrowserSession?> EnsureBrowserSessionAsync(CancellationToken ct)
+    {
+        if (_cachedSession != null)
+            return _cachedSession;
+        if (_browserService == null)
+            return null;
+
+        var session = await _browserService.ResolveChallengeAsync(
+            "https://mangafire.to/",
+            TimeSpan.FromSeconds(30),
+            """
+            (function() {
+                var isChallenge = document.querySelector('.ray-id') ||
+                    document.querySelector('script[src*="challenges.cloudflare.com"]');
+                return !isChallenge;
+            })();
+            """,
+            TimeSpan.FromSeconds(5),
+            ct
+        );
+
+        if (session != null)
+            _cachedSession = session;
+        return _cachedSession;
     }
 
     private static ComicStatus GetComicStatus(string? status) =>
