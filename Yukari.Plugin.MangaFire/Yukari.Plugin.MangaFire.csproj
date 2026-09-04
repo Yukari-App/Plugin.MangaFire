@@ -9,7 +9,7 @@
     <AssemblyName>Yukari.Plugin.MangaFire</AssemblyName>
     <RootNamespace>Yukari.Plugin.MangaFire</RootNamespace>
 
-    <Version>1.0.0+core2.4.0</Version>
+    <Version>1.1.0+core2.5.0</Version>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <AssemblyFileVersion>$(AssemblyVersion)</AssemblyFileVersion>
     <AssemblyInformationalVersion>$(Version)</AssemblyInformationalVersion>
