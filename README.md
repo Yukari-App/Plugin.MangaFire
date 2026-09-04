@@ -46,6 +46,7 @@ Built for the **[Yukari](https://github.com/Yukari-App/Yukari)** Windows reader 
 - **Filters**: Supports content rating, type, demographic, status and genres.
 - **Languages**: English (en), Français (fr), Español (es), Español LA (es-la), Português (pt-br), Português (EU) (pt), 日本語 (ja).
 - **Page count per chapter**: The total number of pages isn't available until a chapter is opened. A `?` is shown in the chapter list until then.
+- **Cloudflare Protection** (Core 2.5.0+): Uses headless browser to bypass challenges. May request manual verification if auto-resolution fails.
 - **Errors**: Returns empty results instead of crashing on API issues (e.g., invalid ID).
 
 <div align="center">
