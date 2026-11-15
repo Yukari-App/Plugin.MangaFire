@@ -50,7 +50,7 @@ Available in **Yukari** (**Core 2.6.0+**) via **Settings → Comic Sources → �
 </div>
 
 - No login required.
-- Uses the official MangaFire API — image requests require a valid Referer header, which Yukari's plugin architecture (Core 2.4.0+) handles automatically.
+- Uses the official MangaFire API; image requests require a valid Referer header, which Yukari's plugin architecture (Core 2.4.0+) handles automatically.
 - **Filters**: Supports content rating, type, demographic, status and genres.
 - **Languages**: English (en), Français (fr), Español (es), Español LA (es-la), Português (pt-br), Português (EU) (pt), 日本語 (ja).
 - **Page count per chapter**: The total number of pages isn't available until a chapter is opened. A `?` is shown in the chapter list until then.
